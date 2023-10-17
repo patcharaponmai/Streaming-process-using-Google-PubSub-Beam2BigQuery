@@ -1,0 +1,6 @@
+google-cloud-pubsub
+google-cloud-bigquery
+apache-beam
+faker
+pandas
+psycopg2

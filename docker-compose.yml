@@ -1,0 +1,24 @@
+version: '3'
+services:
+  jupyter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: jupyter:1.0
+    container_name: jupyter-notebook
+    depends_on:
+      - postgres
+    volumes:
+      - ./source_code:/app  # Replace with the path to your source code
+    ports:
+      - "8888:8888"  # Map host port to container port (adjust as needed)
+    command: ["start-notebook.sh", "--NotebookApp.token=''"]
+
+  postgres:
+    image: postgres:latest
+    environment:
+      POSTGRES_USER: "root"
+      POSTGRES_PASSWORD: "P@ssw0rd"
+      POSTGRES_DB: "online_shopping_db"
+    ports:
+      - "5432:5432"  # Map host port to container port (adjust as needed)
