@@ -1,16 +1,14 @@
 import os
 import sys
-import json
 import time
 import pandas as pd
 import psycopg2
 import configparser
 from dotenv import load_dotenv
 from google.cloud import pubsub_v1
-from google.api_core.exceptions import AlreadyExists
+from google.api_core.exceptions import AlreadyExists, NotFound
 
 def interact_google_pubsub_topic():
-
 
     """
         This function perform connection to Google Cloud Pub/Sub and creates a Pub/Sub topic.
@@ -40,19 +38,33 @@ def interact_google_pubsub_topic():
     # Create Pub/Sub topic if it doesn't exist
     try:
         publisher.create_topic(name=topic_path)
-        print(f"Pub/Sub Topic has been created.\n")
+        print(f"Pub/Sub Topic has been created.")
     except AlreadyExists:
-        print(f"Pub/Sub topic '{pubsub_topic}' already exists.\n")
+        print(f"Pub/Sub topic '{pubsub_topic}' already exists.")
     except Exception as e:
         print(f"Error creating Pub/Sub topic: {e}\n")
         sys.exit(1)
+    
+    # Create Pub/Sub subscription if it doesn't exist
+    try:
+        subscriber.create_subscription(name=subscription_path, topic=topic_path, ack_deadline_seconds=300)
+        print(f"Pub/Sub Subscription has been created")
+    except AlreadyExists:
+        print(f"Pub/Sub subscription '{pubsub_subscription}' already exists.")
+    except Exception as e:
+        print(f"Error creating Pub/Sub subscription: {e}")
+        sys.exit(1)
 
-    # # Check if the subscription exists
-    # while not subscription_path.exists():
-    #     print("Subscription not found, retrying in 5 seconds...")
-    #     time.sleep(5)
+    print(f"Project id : {project_id}")
+    print(f"Topic path : {topic_path}")
+    print(f"Subscription path : {subscription_path}")
+    # Check if the subscription exists
+    while True:
+        check_streaming = str(input("Is Apache Beam available (y/n) ? : "))
+        if check_streaming == 'y':
+            break
 
-    # time.sleep(5)
+    time.sleep(5)
 
 def interact_postgres_db():
 
@@ -64,6 +76,22 @@ def interact_postgres_db():
     print("===== Create Table & Trigger in PostgreSQL =====")
     print("================================================")
     print()
+
+    # Drop Trigger
+    try:
+        cur.execute(f"DROP TRIGGER IF EXISTS data_change_trigger on {TARGET_TABLE};")
+        print(f"Drop trigger data_change_trigger success.")
+    except Exception as e:
+        print(f"Error cannot drop trigger: {e}")
+        sys.exit(1)
+
+    # Drop Table
+    try:
+        cur.execute(f"DROP TABLE IF EXISTS {TARGET_TABLE}")
+        print(f"Drop {TARGET_TABLE} success.")
+    except Exception as e:
+        print(f"Error cannot drop table {TARGET_TABLE}: {e}")
+        sys.exit(1)
 
     # Create target table in PostgreSQL
     CREATE_TABLE_SQL = f""" CREATE TABLE IF NOT EXISTS {TARGET_TABLE} (
@@ -88,18 +116,33 @@ def interact_postgres_db():
     with open(sql_file_path, "r") as f:
         sql_statement = f.read()
 
+    print(sql_statement)
+    
     # Create a PostgreSQL notification for detect change in table
     try:
-        cur.execute(sql_statement, (topic_path))
-        print(f"Create trigger for detect change in table.\n")
+        cur.execute(sql_statement)
+        print(f"Create trigger for detect change in table success.\n")
     except Exception as e:
-        print(f"Error cannot create trigger: {e}")
+        if "already exists" in str(e):
+            print("Trigger 'data_change_trigger' already exists for table 'online_shopping'.")
+        else:
+            print(f"Error creating trigger: {e}")
+            sys.exit(1)
+
+    # Enable trigger to target table for notice change
+    ENABLE_TRIGGER_SQL = f"ALTER TABLE {TARGET_TABLE} ENABLE TRIGGER data_change_trigger;"
+    try:
+        cur.execute(ENABLE_TRIGGER_SQL)
+        print(f"Enable trigger 'data_change_trigger' success.\n")
+    except Exception as e:
+        print(f"Error enable trigger 'data_change_trigger': {e}")
         sys.exit(1)
 
     print()
     print("================================================")
     print("==== Complete Table & Trigger in PostgreSQL ====")
     print("================================================")
+    print()
 
 def main():
 
@@ -118,7 +161,6 @@ def main():
     TOTAL_REC = len(df)
 
     print(f"======== START INGEST DATA INTO `{db_name}`.`{TARGET_TABLE}` ========")
-    sys.exit(1)
 
     for index, row in df.iterrows():
         values = []
@@ -193,7 +235,6 @@ if __name__ == '__main__':
     try:
         conn = psycopg2.connect(**db_params)
         conn.set_session(autocommit=True)
-        print("Connect success.")
     except Exception as e:
         print(f"Error cannot connect to PostgreSQL: {e}")
         sys.exit(1)
@@ -201,7 +242,6 @@ if __name__ == '__main__':
     # Create a cursor object and set autocommit to True
     try:
         cur = conn.cursor()
-        print("Create cursor success.")
     except Exception as e:
         print(f"Error cannot craete cursor object: {e}")
         sys.exit(1)

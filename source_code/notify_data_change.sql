@@ -1,7 +1,7 @@
--- PostgreSQL trigger function to notify data changes
+-- PostgreSQL notification function to send notify to my channel
 CREATE OR REPLACE FUNCTION notify_data_change() RETURNS TRIGGER AS $$
 BEGIN
-    PERFORM pg_notify('%s', row_to_json(NEW)::text);
+    PERFORM pg_notify('data_change', row_to_json(NEW)::text);
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;

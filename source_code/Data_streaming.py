@@ -9,13 +9,19 @@ from dotenv import load_dotenv
 from google.cloud import bigquery, pubsub_v1
 from google.cloud.exceptions import exceptions
 from google.api_core.exceptions import AlreadyExists
-from apache_beam.options.pipeline_options import PipelineOptions
+from apache_beam.options.pipeline_options import PipelineOptions, StandardOptions
+from google.cloud.bigquery import TableReference
+
+
 
 def interact_google_pubsub_subscription():
 
     """
-        This function perform connection to Google Cloud Pub/Sub and creates a Pub/Sub subscription.
+        This function perform connection to Google Cloud Pub/Sub and Google BigQuery.
+        Also create Dataset and Target table in Google BigQuery.
     """
+    
+    global subscription_path, dataset_id, dataset, table, schema
 
     # Initialize Pub/Sub Publisher and Subscriber client
     try:
@@ -26,16 +32,6 @@ def interact_google_pubsub_subscription():
 
     # Create a fully-qualified subscription path
     subscription_path = subscriber.subscription_path(project=project_id, subscription=pubsub_subscription)
-
-    # Create Pub/Sub subscription if it doesn't exist
-    try:
-        subscriber.create_subscription(name=subscription_path, topic=topic_path, ack_deadline_seconds=300)
-        print(f"Pub/Sub Subscription has been created")
-    except AlreadyExists:
-        print(f"Pub/Sub subscription '{pubsub_subscription}' already exists.")
-    except Exception as e:
-        print(f"Error creating Pub/Sub subscription: {e}")
-        sys.exit(1)
 
     # Initialize the BigQuery client
     try:
@@ -57,7 +53,6 @@ def interact_google_pubsub_subscription():
 
     # Define table schema
     schema = [
-        bigquery.SchemaField('No', 'STRING'),
         bigquery.SchemaField('event_id', 'STRING'),
         bigquery.SchemaField('name', 'STRING'),
         bigquery.SchemaField('event_name', 'STRING'),
@@ -81,22 +76,24 @@ def interact_google_pubsub_subscription():
         print(f"Error creating BigQuery table: {e}")
         sys.exit(1)
 
-    # Create a fully-qualified topic path
-    topic_path = publisher.topic_path(project=project_id, topic=pubsub_topic)
-
-    # Create a fully-qualified subscription path
-    subscription_path = subscriber.subscription_path(project=project_id, subscription=pubsub_subscription)
-
-
 # Define a function to process the incoming notifications.
 def process_notification(notification):
 
-    data = json.loads(notification.payload)
+    # Decode the byte string to get a JSON string
+    message = notification.decode('utf-8')
+
+    # Parse the JSON string into a Python dictionary
+    data = json.loads(message)
+
+    # Original message
+    print(f"Data before transform: {data}")
 
     # Transform data
     data['name'] = data['name'].capitalize()
     data['event_name'] = data['event_name'].replace("_", " ")
-    data['event_time'] = datetime.strptime(data['event_time'], "%Y-%m-%d %H:%M:%S.%f").strftime("%Y-%m-%d %H:%M:%S")
+    data['event_time'] = datetime.strptime(data['event_time'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d %H:%M:%S")
+
+    print(f"Data before transform: {data}\n")
 
     return data
 
@@ -105,28 +102,59 @@ def main():
     interact_google_pubsub_subscription()
 
     # Define your Apache Beam pipeline options.
-    options = PipelineOptions()
-    options.view_as(StandardOptions).num_workers = 3
+    options = PipelineOptions(['--num_workers=3',])
+    options.view_as(StandardOptions).streaming = True
 
     # Create a pipeline.
     p = beam.Pipeline(options=options)
 
-    # Read data from the PostgreSQL notification channel.
+    # Define the dataset_id, project_id, and table_id as needed
+    schema = {
+        'fields': [
+            {"name": "event_id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "event_name", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "category", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "item_id", "type": "STRING", "mode": "NULLABLE"},
+            {"name": "item_quantity", "type": "INTEGER", "mode": "NULLABLE"},
+            {"name": "event_time", "type": "TIMESTAMP", "mode": "NULLABLE"}
+        ]
+    }
+
+    table_ref = f"{project_id}:{dataset_id}.{table_id}"
+
     data_changes = (
         p
         | 'Read PostgreSQL Notifications' >> beam.io.ReadFromPubSub(subscription=f"{subscription_path}")
         | 'Process Notifications' >> beam.Map(process_notification)
         | 'Write to BigQuery' >> beam.io.WriteToBigQuery(
-            table=table,
+            table=table_ref,
             schema=schema,
             create_disposition=beam.io.BigQueryDisposition.CREATE_IF_NEEDED,
-            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,   
+            write_disposition=beam.io.BigQueryDisposition.WRITE_APPEND,
         )
     )
 
-    # Run the pipeline.
-    result = p.run()
-    result.wait_until_finish()
+    print(f"Project id : {project_id}")
+    print(f"Subscription path : {subscription_path}")
+
+    try:
+        print("=====================================================")
+        print("============ Start Apache Beam Streaming ============")
+        print("=====================================================")
+        print()
+        print("Streaming is available ...")
+        print()
+
+        # Run the pipeline.
+        result = p.run()
+        result.wait_until_finish()
+    except KeyboardInterrupt as e:        
+        print("=====================================================")
+        print("============ Stop Apache Beam Streaming =============")
+        print("=====================================================")
+        print()
+        print("Streaming is unavailable ...")
 
 ######################################
 ############ MAIN PROGRAM ############

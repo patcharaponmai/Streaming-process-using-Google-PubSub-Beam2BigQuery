@@ -1,6 +1,6 @@
 google-cloud-pubsub
 google-cloud-bigquery
-apache-beam
+apache-beam[gcp]
 faker
 pandas
 psycopg2

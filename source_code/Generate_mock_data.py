@@ -77,6 +77,8 @@ def main():
 
     df = pd.DataFrame(json_data)
     print(df.head())
+    print(f"DataFrame has total {df.shape[0]} rows")
+    print(f"DataFrame has total {df.shape[1]} columns")
 
     df.to_csv("./output.csv", index=False)
 
