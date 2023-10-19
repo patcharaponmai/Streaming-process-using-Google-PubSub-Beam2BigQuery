@@ -3,4 +3,4 @@ google-cloud-bigquery
 apache-beam[gcp]
 faker
 pandas
-psycopg2
+psycopg2-binary

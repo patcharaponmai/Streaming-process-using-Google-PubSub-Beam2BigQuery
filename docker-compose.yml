@@ -5,20 +5,31 @@ services:
       context: .
       dockerfile: Dockerfile
     image: jupyter:1.0
-    container_name: jupyter-notebook
+    container_name: jupyter-notebook-gcp-streaming-project
+    volumes:
+      - ./source_code:/app
+    ports:
+      - "8888:8888"
     depends_on:
       - postgres
-    volumes:
-      - ./source_code:/app  # Replace with the path to your source code
-    ports:
-      - "8888:8888"  # Map host port to container port (adjust as needed)
+    environment:
+      PGHOST: postgres
+      PGUSER: root
+      PGPASSWORD: P@ssw0rd
+      PGDATABASE: online_shopping_db
+      GOOGLE_APPLICATION_CREDENTIALS: ./secrete_key/planar-beach-402009-5c3ff91bc2fa.json
     command: ["start-notebook.sh", "--NotebookApp.token=''"]
 
   postgres:
     image: postgres:latest
+    container_name: postgres-db-gcp-streaming-project
     environment:
       POSTGRES_USER: "root"
       POSTGRES_PASSWORD: "P@ssw0rd"
       POSTGRES_DB: "online_shopping_db"
     ports:
-      - "5432:5432"  # Map host port to container port (adjust as needed)
+      - "5432:5432"
+
+    # Mount SQL initialization script
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql

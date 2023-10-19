@@ -7,9 +7,8 @@ WORKDIR /app
 # Copy your source code into the container
 COPY . /app
 
-# Install Python dependencies and execute scripts
+# Install Python dependencies
 RUN pip3 install -r requirements.txt
-RUN psql -h postgres -U root -d online_shopping_db -a -f notify_data_change.sql
 
 # Expose the Jupyter Notebook port
 EXPOSE 8888
