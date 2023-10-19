@@ -56,7 +56,7 @@ def interact_google_pubsub_topic():
 
     print(f"Project id : {project_id}")
     print(f"Topic path : {topic_path}")
-    print(f"Subscription path : {subscription_path}")
+    print(f"Subscription path : {subscription_path}\n")
     # Check if the subscription exists
     while True:
         check_streaming = str(input("Is Apache Beam available (y/n) ? : "))

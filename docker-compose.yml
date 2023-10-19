@@ -23,13 +23,12 @@ services:
   postgres:
     image: postgres:latest
     container_name: postgres-db-gcp-streaming-project
+    restart: always
     environment:
       POSTGRES_USER: "root"
       POSTGRES_PASSWORD: "P@ssw0rd"
       POSTGRES_DB: "online_shopping_db"
     ports:
       - "5432:5432"
-
-    # Mount SQL initialization script
     volumes:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql

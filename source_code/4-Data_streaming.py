@@ -85,7 +85,7 @@ def process_notification(notification):
     print(f"Data before transform: {data}")
 
     # Transform data
-    data['event_name'] = data['event_name'].replace("_", " ").str.upper()
+    data['event_name'] = data['event_name'].replace("_", " ").upper()
     data['event_time'] = datetime.strptime(data['event_time'], "%Y-%m-%dT%H:%M:%S.%f").strftime("%Y-%m-%d %H:%M:%S")
 
     print(f"Data before transform: {data}\n")
