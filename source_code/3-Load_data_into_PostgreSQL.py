@@ -110,31 +110,41 @@ def interact_postgres_db():
         print(f"Error cannot create table {TARGET_TABLE}: {e}")
         sys.exit(1)
 
-    # Read the SQL file
-    sql_file_path = "./notify_data_change.sql"
-    with open(sql_file_path, "r") as f:
-        sql_statement = f.read()
+     # Read the SQL file
+    SQL_STATEMENT = f"""
+        -- PostgreSQL notification function to send notify to my channel
+        CREATE OR REPLACE FUNCTION notify_data_change() RETURNS TRIGGER AS $$
+        BEGIN
+            PERFORM pg_notify('{my_channel}', row_to_json(NEW)::text);
+            RETURN NEW;
+        END;
+        $$ LANGUAGE plpgsql;
 
-    print(sql_statement)
+        -- PostgreSQL trigger to activate the notification function
+        CREATE TRIGGER {my_trigger}
+        AFTER INSERT ON {TARGET_TABLE}
+        FOR EACH ROW
+        EXECUTE FUNCTION notify_data_change();
+    """
     
     # Create a PostgreSQL notification for detect change in table
     try:
-        cur.execute(sql_statement)
-        print(f"Create trigger for detect change in table success.\n")
+        cur.execute(SQL_STATEMENT)
+        print(f"Create trigger for detect change in table success.")
     except Exception as e:
         if "already exists" in str(e):
-            print("Trigger 'data_change_trigger' already exists for table 'online_shopping'.")
+            print(f"Trigger '{my_trigger}' already exists for table '{TARGET_TABLE}'.")
         else:
             print(f"Error creating trigger: {e}")
             sys.exit(1)
 
     # Enable trigger to target table for notice change
-    ENABLE_TRIGGER_SQL = f"ALTER TABLE {TARGET_TABLE} ENABLE TRIGGER data_change_trigger;"
+    ENABLE_TRIGGER_SQL = f"ALTER TABLE {TARGET_TABLE} ENABLE TRIGGER {my_trigger};"
     try:
         cur.execute(ENABLE_TRIGGER_SQL)
-        print(f"Enable trigger 'data_change_trigger' success.\n")
+        print(f"Enable trigger '{my_trigger}' success.\n")
     except Exception as e:
-        print(f"Error enable trigger 'data_change_trigger': {e}")
+        print(f"Error enable trigger '{my_trigger}': {e}")
         sys.exit(1)
 
     print()
@@ -204,6 +214,9 @@ if __name__ == '__main__':
     config.read("./config.ini")
 
     try:
+        TARGET_TABLE = config.get('PROJ_CONF', 'TABLE_NAME')
+        my_channel = config.get('PROJ_CONF', 'MY_CHANNEL')
+        my_trigger = config.get('PROJ_CONF', 'MY_TRIGGER')
         project_id = config.get('PROJ_CONF', 'PROJ_ID')
         pubsub_topic = config.get('PROJ_CONF', 'PUBSUB_TOPIC_NAME')
         pubsub_subscription = config.get('PROJ_CONF', 'PUBSUB_SUBSCRIPTION_NAME')

@@ -5,7 +5,7 @@ services:
       context: .
       dockerfile: Dockerfile
     image: jupyter:1.0
-    container_name: jupyter-notebook-gcp-streaming-project
+    container_name: jupyter-notebook-gcp-beam-streaming-project
     volumes:
       - ./source_code:/app
     ports:
@@ -22,7 +22,7 @@ services:
 
   postgres:
     image: postgres:latest
-    container_name: postgres-db-gcp-streaming-project
+    container_name: postgres-db-gcp-beam-streaming-project
     restart: always
     environment:
       POSTGRES_USER: "root"
