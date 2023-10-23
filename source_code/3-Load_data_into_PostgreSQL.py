@@ -224,7 +224,7 @@ if __name__ == '__main__':
         print(f"Error cannot get require parameters: {e}")
         sys.exit(1)
 
-    TARGET_TABLE = "online_shopping"
+    # TARGET_TABLE = "online_shopping"
     db_name = os.getenv('PGDATABASE')
     db_user = os.getenv('PGUSER')
     db_password = os.getenv('PGPASSWORD')
