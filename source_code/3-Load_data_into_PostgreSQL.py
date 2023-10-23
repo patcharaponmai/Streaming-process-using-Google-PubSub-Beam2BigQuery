@@ -78,8 +78,8 @@ def interact_postgres_db():
 
     # Drop Trigger
     try:
-        cur.execute(f"DROP TRIGGER IF EXISTS data_change_trigger on {TARGET_TABLE};")
-        print(f"Drop trigger data_change_trigger success.")
+        cur.execute(f"DROP TRIGGER IF EXISTS {my_trigger} on {TARGET_TABLE};")
+        print(f"Drop trigger {my_trigger} success.")
     except Exception as e:
         print(f"Error cannot drop trigger: {e}")
         sys.exit(1)
