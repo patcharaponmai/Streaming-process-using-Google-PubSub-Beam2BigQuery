@@ -110,7 +110,7 @@ def interact_postgres_db():
         print(f"Error cannot create table {TARGET_TABLE}: {e}")
         sys.exit(1)
 
-     # Read the SQL file
+     # Create trigger to detect change in table and send notification in text object while in JSON form
     SQL_STATEMENT = f"""
         -- PostgreSQL notification function to send notify to my channel
         CREATE OR REPLACE FUNCTION notify_data_change() RETURNS TRIGGER AS $$
