@@ -9,17 +9,24 @@ from google.cloud import pubsub_v1
 
 
 def listen_to_postgres_channel():
+
     cur.execute(f"LISTEN {my_channel}")
     print(f"Start listen to PostgreSQL channel: {my_channel}")
 
     while True:
 
-        if select.select([conn], [], [], 5) == ([], [], []):
+        # Checks if there is any data available to read from the conn socket (PostgreSQL).
+        if select.select([conn], [], [], 5) == ([], [], []): 
             continue
         else:
             print("Get Notification")
+
+            # Check if any PostgreSQL notifications have been sent and store incoming notification in queue
             conn.poll()
-            while conn.notifies:
+
+            # Loop iterates through any notifications that are pending
+            while conn.notifies: 
+                # Pops the first notification from the queue of pending notifications
                 notify = conn.notifies.pop(0)
                 notification_data = notify.payload.encode("utf-8")
                 # Forward the notification to the Pub/Sub topic
